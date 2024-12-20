@@ -9,8 +9,12 @@ import SwiftData
 import SwiftUI
 
 struct ContentView: View {
-    @Query var destinations: [Destination]
+    @Query(sort: [
+        SortDescriptor(\Destination.priority, order: .reverse),
+        SortDescriptor(\Destination.name)
+    ]) var destinations: [Destination]
     @Environment(\.modelContext) var modelContext
+    @State private var path = [Destination]()
 
     func addSamples() {
         let rome = Destination(name: "Rome")
@@ -21,22 +25,47 @@ struct ContentView: View {
         modelContext.insert(naples)
     }
 
-    var body: some View {
-        List {
-            Text("wtf")
-            ForEach(destinations) { destination in
-                Text(destination.name)
-                    .font(.headline)
-                Text(destination.details)
-                    .font(.subheadline)
-                Text(destination.date.formatted(date: .long, time: .shortened))
-                    .font(.caption)
-                Text("Priority: \(destination.priority)")
-            }
-            .navigationTitle("Destinations")
+    func deleteDestinations(_ indexSet: IndexSet) {
+        for index in indexSet {
+            let destination = destinations[index]
+            modelContext.delete(destination)
         }
-        .toolbar {
-            Button("Add samples", action: addSamples)
+    }
+
+    func createDestination() {
+        let newDestination = Destination()
+        modelContext.insert(newDestination)
+        path = [newDestination]
+    }
+
+    var body: some View {
+        NavigationStack(path: $path) {
+            List {
+                ForEach(destinations) { destination in
+                    NavigationLink(value: destination) {
+                        VStack(alignment: .leading) {
+                            Text(destination.name)
+                                .font(.headline)
+                            if destination.details != "" {
+                                Text(destination.details)
+                                    .font(.subheadline)
+                            }
+                            Text(destination.date.formatted(date: .long, time: .shortened))
+                                .font(.caption)
+                            Text("Priority: \(destination.priority)")
+                                .font(.caption2)
+                        }
+                    }
+                }
+                .onDelete(perform: deleteDestinations)
+            }
+            .navigationDestination(for: Destination.self, destination: EditDestinationView.init)
+            .navigationTitle("Destinations")
+            .toolbar {
+                Button { createDestination() } label: {
+                    Label("Create", systemImage: "plus")
+                }
+            }
         }
     }
 }
